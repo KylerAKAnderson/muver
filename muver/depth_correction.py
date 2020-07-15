@@ -72,3 +72,6 @@ def write_corrected_bedgraph(input_bedgraph, chrom_sizes, output_bedgraph,
                     last_chr = chromosome
 
         print_line(last_chr, last_start, last_pos, last_val, OUT)
+        
+        
+

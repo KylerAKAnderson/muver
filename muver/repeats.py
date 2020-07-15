@@ -1,7 +1,7 @@
 from collections import OrderedDict
 import copy
 import itertools
-import regex as re
+import re
 import random
 
 

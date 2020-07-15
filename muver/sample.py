@@ -2,6 +2,7 @@ import csv
 import glob
 import os
 import shutil
+import time
 from tempfile import NamedTemporaryFile, mkdtemp
 
 from repeat_indels import read_fits
@@ -32,6 +33,7 @@ class Sample(object):
             'repeat_indel_fits_dict',
             'merged_bam',
             'depth_bedgraph',
+            'corrected_depth_bedgraph,'
             '_mpileup_out',
         ):
             setattr(self, attr, None)
@@ -102,8 +104,11 @@ class Sample(object):
         '''
         # GENERATE INTERMEDIATE FILES FOR EACH FASTQ
         def named_temp(suffix=''):
-            return NamedTemporaryFile(
-                mode='w', dir=self.exp_dir, suffix=suffix)
+            file_name = 'tmp' + \
+                hex(int(time.perf_counter() % 1 \
+                        * 1000000)).split('x')[1] + suffix
+            return os.path.join(*(
+                os.getcwd(), self.exp_dir, file_name))
 
         def named_file(file_dir, file_name):
             file_name = file_name.format(self.sample_name)
@@ -141,6 +146,7 @@ class Sample(object):
             for attr, file_dir, file_name in (
                 ('merged_bam', 'bams', '{}.bam'),
                 ('depth_bedgraph', 'depth_distributions', '{}.bedGraph'),
+                ('corrected_bedgraph', 'corrected_depth_distributions', '{}.bedGraph'),
                 ('filtered_sites', 'filtered_sites',
                     '{}.filtered_sites.bed'),
                 ('strand_bias_distribution', 'depth_distributions',
@@ -159,15 +165,16 @@ class Sample(object):
         Iterate through object attributes and get temporary and output file
         names.  Return in a dict.
         '''
+        # This essentially duplicates this sample's attribute dictionary
         file_names = dict()
 
         for attr, value in self.__dict__.items():
 
             if attr.startswith('_'):
                 if isinstance(value, list):
-                    file_names[attr] = [tmp.name for tmp in value]
+                    file_names[attr] = [tmp for tmp in value]
                 else:
-                    file_names[attr] = value.name
+                    file_names[attr] = value
             else:
                 if isinstance(value, list):
                     file_names[attr] = [tmp for tmp in value]
@@ -175,6 +182,22 @@ class Sample(object):
                     file_names[attr] = value
 
         return file_names
+    
+    def clear_temp_files(self):
+        '''
+        Iterate through temporary files and delete any left existing.
+        '''
+        tempfile_names = []
+
+        for attr, value in self.__dict__.items():
+            if attr.startswith('_'):  # '_' identifies temporary files
+                if isinstance(value, list):
+                    tempfile_names.extend([tmp for tmp in value])
+                else:
+                    tempfile_names.append(value)
+
+        for name in tempfile_names:
+            os.remove(name)
 
     def clear_temp_file_indices(self):
         '''
@@ -186,9 +209,9 @@ class Sample(object):
         for attr, value in self.__dict__.items():
             if attr.startswith('_'):  # '_' identifies temporary files
                 if isinstance(value, list):
-                    tempfile_names.extend([tmp.name for tmp in value])
+                    tempfile_names.extend([tmp for tmp in value])
                 else:
-                    tempfile_names.append(value.name)
+                    tempfile_names.append(value)
 
         for name in tempfile_names:
             for ext in ('.bai', '.idx'):
@@ -253,6 +276,8 @@ def generate_experiment_directory(exp_dir):
         'bams',
         'logs',
         'depth_distributions',
+        'corrected_depth_distributions',
+        'cnv_bedgraphs',
         'filtered_sites',
         'output',
         'gatk_output',

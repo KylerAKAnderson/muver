@@ -1,3 +1,4 @@
+from __future__ import print_function # me
 from collections import defaultdict
 import csv
 import matplotlib
@@ -5,6 +6,13 @@ matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import math
 import re
+
+import gc # me
+import time # me
+
+import psutil # me
+
+import numpy as np
 from scipy.optimize import curve_fit
 
 from fitting import logistic
@@ -23,7 +31,7 @@ def calculate_repeat_occurrences(repeats):
     e.g. GAGAGAGAG -- repeat_unit_length: 2, repeat_tract_length: 8
     '''
     occurrences = defaultdict(int)
-
+    
     for chromosome_repeats in repeats.values():
         
         for position, position_repeats in chromosome_repeats.items():
@@ -36,7 +44,6 @@ def calculate_repeat_occurrences(repeats):
                         repeat['sequence'].count(repeat['unit'])
 
                     occurrences[(repeat_unit_length, repeat_tract_length)] += 1
-
     return occurrences
 
 
@@ -48,130 +55,79 @@ def calculate_repeat_indel_counts(repeats, sam_iter):
     '''
     
     counts = dict()
+    def tally(chromosome, left, end, alsoTally=None):
+        #position_repeats = repeats.get(chromosome, {}).get(left, [])
+        
+        try:
+            position_repeats = repeats[chromosome][left]
+        except KeyError:
+            position_repeats = []
+
+        for repeat in position_repeats:
+            if repeat['start'] == left and \
+               repeat['start'] + len(repeat['sequence']) < end:
+
+                repeat_unit_length = len(repeat['unit'])
+                repeat_length = repeat_unit_length * \
+                        repeat['sequence'].count(repeat['unit'])
+
+                counts['depth'][repeat_unit_length][repeat_length] += 1
+                if alsoTally:
+                    counts[alsoTally][repeat_unit_length][repeat_length] += 1
+    
     for field in ['depth', 'insertion', 'deletion']:
         counts[field] = dict()
-        for repeat_length in range(1, 5):
-            counts[field][repeat_length] = defaultdict(int)
+        for repeat_unit_length in range(1, 5):
+            counts[field][repeat_unit_length] = defaultdict(int)
 
     for line in sam_iter:
+
+        if line[0] == '@': pass
+
+        line_split = line.strip().split('\t')
+
+        chromosome = line_split[2]
+        position = int(line_split[3])
+        cigar_string = line_split[5]
+
+        total_length = 0
+        length = 0
+        _sum = 0
         
-        if line.startswith('@'):
-            pass
+        lengths = []
+        ops = []
 
-        else:
-
-            line_split = line.strip().split('\t')
+        for match in re.finditer('(\d+)([MISD])', cigar_string):
             
-            chromosome = line_split[2]
-            position = int(line_split[3])
-            cigar_string = line_split[5]
-            sequence = line_split[9]
-
-            total_length = 0
-            length = 0
-            _sum = 0
-
-            starts = []
-            deletions = []
-            lengths = []
-            ops = []
-
-            for match in re.finditer('(\d+)([MISD])', cigar_string):
-
-                try:
-                    starts.append(starts[-1] + length)
-                except IndexError:
-                    starts.append(length)
-
-                length = int(match.group(1))
-                op = match.group(2)
-
-                ops.append(op)
-
-                if op == 'M' or op == 'D':
+            length = int(match.group(1))
+            op = match.group(2)
+            ops.append(op)
+            
+            if op == 'D':
+                total_length += length
+                lengths.append(-length)
+                length = 0
+            else:
+                if op == 'M':
                     total_length += length
-
-                if op == 'D':
-                    deletions.append(length)
-                    length = 0
-                else:
-                    deletions.append(0)
-
                 lengths.append(length)
+        
+        temp = np.array(lengths)
+        temp[temp < 0] = 0
+        starts = np.cumsum(temp) - temp + position
+        del temp
+        
+        end = position + total_length - 1
 
-            end = position + total_length - 1
-
-            for i, op in enumerate(ops):
-
-                if op == 'S':
-                    _sum += lengths[i]
-
-                elif op == 'I':
-                    left = position + starts[i] - 1
-                    left -= _sum
-
-                    try:
-                        position_repeats = repeats[chromosome][left]
-                    except KeyError:
-                        position_repeats = []
-
-                    for repeat in position_repeats:
-                        if repeat['start'] == left:
-
-                            if repeat['start'] + len(repeat['sequence']) < end:
-
-                                repeat_unit_length = len(repeat['unit'])
-                                repeat_length = repeat_unit_length * \
-                                    repeat['sequence'].count(repeat['unit'])
-
-                                counts['depth'][repeat_unit_length][repeat_length] += 1
-                                counts['insertion'][repeat_unit_length][repeat_length] += 1
-
-                    _sum += lengths[i]
-
-                elif op == 'D':
-                    left = position + starts[i] - 1
-                    left -= _sum
-
-                    try:
-                        position_repeats = repeats[chromosome][left]
-                    except KeyError:
-                        position_repeats = []
-
-                    for repeat in position_repeats:
-                        if repeat['start'] == left:
-
-                            if repeat['start'] + len(repeat['sequence']) < end:
-
-                                repeat_unit_length = len(repeat['unit'])
-                                repeat_length = repeat_unit_length * \
-                                    repeat['sequence'].count(repeat['unit'])
-
-                                counts['depth'][repeat_unit_length][repeat_length] += 1
-                                counts['deletion'][repeat_unit_length][repeat_length] += 1
-
-                    _sum -= deletions[i]
-
-                elif op == 'M':
-                    for j in range(lengths[i]):
-                        left = position + starts[i] - _sum + j
-
-                        try:
-                            position_repeats = repeats[chromosome][left]
-                        except KeyError:
-                            position_repeats = []
-
-                        for repeat in position_repeats:
-                            if repeat['start'] == left and j < lengths[i] - 1:
-
-                                if repeat['start'] + len(repeat['sequence']) < end:
-
-                                    repeat_unit_length = len(repeat['unit'])
-                                    repeat_length = repeat_unit_length * \
-                                        repeat['sequence'].count(repeat['unit'])
-
-                                    counts['depth'][repeat_unit_length][repeat_length] += 1
-
+        for i, op in enumerate(ops):
+            if op == 'M':
+                for j in range(lengths[i] - 1):
+                    tally(chromosome, starts[i] - _sum + j, end)
+            else:
+                if op != 'S':
+                    tally(chromosome, starts[i] - _sum - 1, end, 'insertion' if op == 'I' else 'deletion')
+                _sum += lengths[i]
+    
     return counts
 
 
@@ -211,14 +167,16 @@ def fit_rates(indel_rates):
     '''
     Considering repeats of a given repeat unit length, fit rates to a logistic
     function of repeat tract length.  Return fit parameters in a dict.
-    '''
+    '''        
     fits = dict()
 
     for event in ['insertion', 'deletion']:
+        print('*', event)
         fits[event] = dict()
-
+        
         for repeat_length, rates in indel_rates[event].items():
-
+            print('** Length', repeat_length)
+            
             tract_lengths = []
             repeat_rates = []
 
@@ -228,9 +186,9 @@ def fit_rates(indel_rates):
                 repeat_rates.append(math.log10(rate))
 
             if repeat_rates:
-
+                
                 p0_k = 0.1
-                p0_L = max(repeat_rates) - min(repeat_rates)
+                p0_L = max(repeat_rates) - min(repeat_rates) 
                 p0_M = min(repeat_rates)
 
                 mid_value = (max(repeat_rates) + min(repeat_rates)) / 2
@@ -247,9 +205,11 @@ def fit_rates(indel_rates):
                     tract_lengths,
                     repeat_rates,
                     p0=[p0_x0, p0_L, p0_M, p0_k],
-                    max_nfev=1000000,
+                    max_nfev=5000,
                     method='trf',
                 )
+                
+                print("*** Fit in {} calls and {:.3f} kb".format(L.calls, L.maxmem/(2**10)))
                 x0, L, M, k = popt
 
                 fits[event][repeat_length] = {
@@ -260,22 +220,7 @@ def fit_rates(indel_rates):
                 }
 
     return fits
-
-
-class LogisticWrapper:
-    
-    def __init__(self):
-        self.calls = 0
-        self.memi = psutil.virtual_memory().available
-        self.maxmem = 0
         
-    def __call__(self, x, x0, L, M, k):
-        out = logistic(x, x0, L, M, k)
-        self.calls += 1
-        mem = self.memi - psutil.virtual_memory().available
-        if mem > self.maxmem: self.maxmem = mem
-        return out
-
 
 def plot_fits(indel_rates, fits, output_header):
     '''
@@ -430,17 +375,20 @@ def fit_repeat_indel_rates(repeats, bam_file, output_file,
     fits to an output file. If output_plot_header is specified, plot fitted
     values for visual validation.
     '''
+    
     bam_iter = view_bam(bam_file)
-
+    
     repeat_occurrences = calculate_repeat_occurrences(repeats)
-
+    
     indel_counts = calculate_repeat_indel_counts(repeats, bam_iter)
+    
     indel_rates = calculate_repeat_indel_rates(
         indel_counts, repeat_occurrences)
-
+    
     fits = fit_rates(indel_rates)
-
+    
     print_fits(fits, output_file)
     print_rates(indel_rates, output_file)
+    
     if output_plot_header:
         plot_fits(indel_rates, fits, output_plot_header)

@@ -6,9 +6,78 @@ from utils import read_cnv_bedgraph
 from fitting import gaussian
 
 
+def read_raw_depths_mpileup(mpileup_file, chrom_sizes):
+    '''
+    Reads mpileup raw coverage into a dictionary, an entry per chromosome.
+    '''
+    depths = dict()
+
+    with open(mpileup_file) as f:
+        for line in f:
+
+            line_split = line.strip().split()
+
+            chromosome, position, reference_base, coverage = line_split[:4]
+            position = int(position)
+            coverage = float(coverage)
+
+            if chromosome not in depths:
+                depths[chromosome] = numpy.zeros(chrom_sizes[chromosome], \
+                    dtype=numpy.int32)
+
+            if int(coverage) > 0:
+                bases = line_split[4]
+            else:
+                bases = ''
+
+            i = 0
+            while i < len(bases):
+                if bases[i] == '^':
+                    i += 1
+                elif bases[i] == '*':
+                    coverage += 1
+                i += 1
+            
+            depths[chromosome][position-1] = coverage
+                    
+    return depths
+
+
+def write_bedgraph(depths_dict, output_bedgraph):
+    
+    with open(output_bedgraph, 'w') as OUT:
+        for chromosome in depths_dict:
+            depths = depths_dict[chromosome]
+
+            idxs = numpy.nonzero(depths[:-1] != depths[1:])[0]
+
+            breaks = numpy.concatenate(([1], idxs+2, [len(depths)+1]))
+            values = numpy.concatenate((depths[idxs], [depths[-1]]))
+            
+            for i, value in enumerate(values):
+                if not value: continue
+                OUT.write('{}\t{}\t{}\t{}\n'.format(
+                    chromosome, 
+                    breaks[i],
+                    breaks[i+1],
+                    value))
+
+                          
+def convert_to_percopy(depths, ploidy, cnv_regions):
+    '''
+    Convert a dictionary of raw mpileup depths to coverage per copy.
+    '''
+    for chromosome in depths:
+        for i in range(len(depths[chromosome])):
+            if (chromosome, i+1) in cnv_regions:
+                depths[chromosome][i] //= cnv_regions[(chromosome, i+1)]
+            else: 
+                depths[chromosome][i] //= ploidy
+
+
 def calculate_depth_distribution(depths, output):
     '''
-    For a list of depths, create a histogram of depth values.  Then
+    For a list of depths, create a histogram of depth values. Then
     fit those values using a normal distribution. Return fit parameters. Output
     fit parameters and the histogram in a TXT file.
     '''
@@ -39,6 +108,17 @@ def calculate_depth_distribution(depths, output):
             )) + '\n')
 
     return mu, sigma
+
+
+def calculate_depth_distribution_dict(depths_dict, output):
+    '''
+    Combine all nonzero depths from a coverage per copy dictionary into a list
+    '''
+    depths = []
+    for chromosome in depths_dict:
+        idxs = numpy.nonzero(depths_dict[chromosome])[0]
+        depths.extend(depths_dict[chromosome][idxs])
+    return calculate_depth_distribution(depths, output)
 
 
 def calculate_depth_distribution_bedgraph(in_bedgraph, output, ploidy=2,
@@ -226,9 +306,9 @@ def process_chromosome_values(chromosome, chromosome_values, mu, sigma, OUT,
         )
 
 
-def filter_regions_by_depth(depths, chrom_sizes, mu, sigma,
+def filter_regions_by_depth(depths, mu, sigma,
                             filtered_regions_output, p_threshold=0.0001,
-                            merge_window=1000):
+                            merge_window=1000): # removed unused chrom_sizes argument
     '''
     Filter positions by depth observing a normal distribution.  See
     process_chromosome_values for additional details.
@@ -275,16 +355,16 @@ def filter_regions_by_depth_bedgraph(bedgraph_file, chrom_sizes, mu,
                 else:
                     depths[chromosome][position - 1] = int(coverage / ploidy)
 
-    filter_regions_by_depth(depths, chrom_sizes, mu, sigma, \
+    filter_regions_by_depth(depths, mu, sigma, \
         filtered_regions_output, p_threshold, merge_window)
-
-
+    
+    
 def filter_regions_by_depth_mpileup(mpileup_file, chrom_sizes, mu,
                                      sigma, filtered_regions_output,
                                      ploidy, cnv_regions, p_threshold=0.0001,
                                      merge_window=1000):
     '''
-    Pass depths read from a mplieup TXT file to filter_regions_by_depth.
+    Pass depths read from a mpileup TXT file to filter_regions_by_depth.
     '''
     depths = dict()
 
@@ -321,5 +401,5 @@ def filter_regions_by_depth_mpileup(mpileup_file, chrom_sizes, mu,
                 else:
                     depths[chromosome][position - 1] = int(coverage / ploidy)
 
-    filter_regions_by_depth(depths, chrom_sizes, mu, sigma,
+    filter_regions_by_depth(depths, mu, sigma,
         filtered_regions_output, p_threshold, merge_window)

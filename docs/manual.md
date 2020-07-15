@@ -2,7 +2,7 @@
 muver is an analytical framework developed to improve sensitivity and increase accuracy in mutation identification from high-throughput sequencing data. muver provides significantly increased accuracy in challenging genomic contexts, including low complexity repetitive sequences. The muver framework has been applied to data from mutation accumulation experiments in yeast.
 
 ## Requirements
-muver was developed using Python 2.7.13. In addition to requirements specified in setup.py, muver requires installation of the following tools:
+muver was developed using Python 3.7.6. In addition to requirements specified in setup.py, muver requires installation of the following tools:
 * [Bowtie2](http://bowtie-bio.sourceforge.net/bowtie2/index.shtml)
 * [GATK, version 3.7-0](https://software.broadinstitute.org/gatk/download/)
 * [picard](https://broadinstitute.github.io/picard/)
@@ -44,7 +44,11 @@ muver run_pipeline [OPTIONS] REFERENCE_ASSEMBLY FASTQ_LIST CONTROL_SAMPLE_NAME E
 
 Runs the full muver pipeline, from FASTQs to called genotypes and mutations. For details about the mutation calling methodology, see the companion manuscript.
 
-Input samples and parameters are specified in the `FASTQ_LIST` file. In this file, each row corresponds to an individual sample. The row contents are in turn are specified by header fields in the first row. For a complete example, see example_fastq_list.txt.
+Input samples and parameters are specified in the `FASTQ_LIST` file. In this file, each row corresponds to an individual sample. The row contents in turn are specified by header fields in the first row. For a complete example, see example_fastq_list.txt.
+
+The default depth correction is intended for use by the lab developing MuVer. *To turn off depth correction, add the option --dcmodule=''.* For depth profiles that are already sufficiently flat (ignoring potential CNVs) the depth correction will have minimal effect, but may cause artifacts.
+
+The depth submodule refers to an options.cfg file *in the working directory* for tweaking parameters of its procedures. *If the default depth correction is used, this file is* ***NOT*** *optional.* This is because the default depth correction assumes a yeast genome and requires information about chromosome number in order to operate. More information is provided in example_options.cfg.
 
 Prior to running, the reference assembly must be indexed and repeats called. To do this, run the muver functions [index_reference](#index_reference) and [create_repeat_file](#create_repeat_file).
 
@@ -54,6 +58,8 @@ Output files are placed into the `EXPERIMENT_DIRECTORY`. When `run_pipeline` is 
 EXPERIMENT_DIRECTORY/
 |   sample_info.txt
 |-- bams/
+|-- cnv_bedgraphs/
+|-- corrected_depth_distributions/
 |-- depth_distributions/
 |-- filtered_sites/
 |-- fits/
@@ -71,13 +77,28 @@ The sample_info.txt file contains parameters and paths to output files associate
   4.  Deduplicate.
   5.  Realign indels (GATK).
 
+* cnv_bedgraphs/
+  
+  Contains depth based CNV calls made by the depth submodule. Each CNV described by a line in bedGraph format as folllows: chromosome start end ploidy.
+
+* corrected_depth_distributions/
+
+  Contains bedGraph files describing read depths in processed BAM after passing the depths through a correction process for the sake of improving CNV calls. If --dcmodule='' is specified when using [run_pipeline](#run_pipeline), this directory will not be populated.
+
+  *Please note that [correct_depths](#correct_depths) still uses v0.1.0 depth correction and does not ouput to this directory. This behavior will be addressed in v0.2.1.*
 
 * depth_distributions/
 
   Contains depth and strand bias distributions. In addition, contains bedGraph files describing read depths in processed BAM files. Depth and strand bias distributions are generated using [calculate_depth_distribution](#calculate_depth_distribution) and [calculate_bias_distribution](#calculate_bias_distribution), respectively. Read depths are calculated using [calculate_read_depths](#calculate_read_depths).
+
+  *Please note that [calculate_depth_distribtion](#calculate_depth_distribution) still produces the parameters from v0.1.0 depth distributions. This inconsistency will be addressed by v0.2.1.*
+
 * filtered_sites/
 
-  Contains regions filtered on the basis of abnormal read depth. These regions are called using [calculate_depth_distribution](#calculate_depth_distribution).
+  Contains regions filtered on the basis of abnormal read depth. 
+
+  *Please note that [calculate_depth_distribution](#calculate_depth_distribution) still uses v0.1.0 filtering techniques relying on v0.1.0 depth distribution parameters as produced by [calculate_depth_distribtion](#calculate_depth_distribution). This inconsistency will be addressed by v0.2.1
+
 * fits/
 
   Contains details of the fitting of observed indel rates to logistic distributions. These files are generated using [fit_repeat_indel_rates](#fit_repeat_indel_rates).
@@ -95,15 +116,38 @@ The sample_info.txt file contains parameters and paths to output files associate
 * `-p, --processes INTEGER`
 
   Number of processes/threads to allocate to muver and its dependencies (default 1)
+
 * `--excluded_regions PATH`
 
   Path to a BED file specifying genomic regions to ignore during mutation calling.
+
 * `--fwer FLOAT`
 
   Rate at which to control family-wise error.
+
 * `--max_records`
 
   Maximum number of reads to store in memory when sorting BAM files (default = 1,000,000). This value is passed to picard as the parameter 'MAX_RECORDS_IN_RAM', and requires approximately 2 GB of memory per million, multiplied by the count of samples or the number of simultaneous processes/threads specified with '-p', whichever is lower. This value should be modified when any input FASTQ pair contains more than 1 billion reads, to prevent picard from opening more temporary files than the system will allow. This file limit is typically 1024, and can be queried by running the following command: 'ulimit -n'. This parameter should be set no lower than (Maximum Read Count / Limit). In some cases, the limit may be increased to allow reduced memory usage. The maximum value may be queried using 'ulimit -Hn'.
+
+* `--clear_tmps`
+
+  Whether to clear temporary files and serialize the sample information after running the pipe_line. Valid options include 'Yes' (or 'Y'), 'On_Success' (or 'S', this is the Default), and 'No' (or 'N'). '(Y)es' will delete any temporary files even if the run ends in an error whereas 'On_(S)uccess' only deletes them if the run ends successfully. '(N)o' will always leave behind all temporary files.
+
+This behavior is to be used in conjunction with the `--stage` option to resume the pipeline from intermediate stages for manual interventions or interrupted runs.
+
+* `--old_filter`
+
+  A True or False value indicating whether to use v0.1.0 depth distribution calculations and depth filtering techniques.
+
+* `--dcmodule`
+
+  The name of an alternative module to use for correcting the depth profiles in preparation for CNV calling. *By default, a correction procedure somewhat specific to the lab developing MuVer is used.* To turn off all depth correction, pass --dcmodule=''.
+
+  To provide custom depth correction, specify the module name and make sure it is importable from the working directory. The module must have a correct_depths function that takes as arguments (in the given order): a dictionary of the depth profiles (by track name of the `REFERENCE_ASSEMBLY`), the sample name, the ploidy (as given in `FASTQ_LIST`), and an output folder used to convey the experiment directory.
+
+* `--stage`
+
+  Allows the pipeline to begin at intermediate steps. Run a set of samples without this option before attempting to use it. Temporary files and sample information may be serialized (see the `--clear_tmps` option) for a given run. Providing a non-zero value for the stage instructs MuVer to load the serialized information and use the previous temporary files. Follow the integer codes next to the names of stages in the ouput to indicate the desired entry point. Starting later than the last successful stage produces behavior that is left undefined and is therefore unsupported.
 
 #### Arguments
 * `REFERENCE_ASSEMBLY`
@@ -368,6 +412,8 @@ The first two lines of the output file give the parameters of the fit. The remai
 ```
 muver calculate_depth_distribution [OPTIONS] BEDGRAPH_FILE REFERENCE_ASSEMBLY OUTPUT_DEPTH_DISTRIBUTION
 ```
+***Version 0.1.0 Behavior***
+
 Calculates the distribution of values per chromosome copy for a bedGraph file. Generates a histogram of values and fits those values to a normal distribution. The histogram and the parameters of the fit are reported in the output file.
 
 #### Output format
@@ -455,6 +501,8 @@ The output is in standard bedGraph format, with read depths reported in the four
 ```
 muver correct_depths [OPTIONS] Y_INT SCALAR MEAN_LOG SD_LOG SLOPE REFERENCE_ASSEMBLY INPUT_BEDGRAPH OUTPUT_BEDGRAPH
 ```
+***Version 0.1.0 Behavior***
+
 Corrects depth values for samples with relatively higher depth at chromosome ends. Depth correction is performed using the sum of a log-normal cumulative distribution function and a linear function. The correction function is given below, where x is the distance from the chromosome end:
 
 correction_factor(x) = SCALAR \* (1 - [1/2 + 1/2 erf((ln(x) - MEAN_LOG)) / (sqrt(2) \* SD_LOG)]) + Y_INT + SLOPE \* x

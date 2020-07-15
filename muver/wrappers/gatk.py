@@ -79,7 +79,7 @@ def indel_realigner(ref_fn, log, in_bam, intervals, realigned_bam):
     Run GATK IndelRealigner.
     '''
     quiet_call([
-        'java', '-jar',
+        'java', '-jar', # Windows Tweak because java defaults
         PATHS['gatk'],
         '-R', ref_fn,
         '-T', 'IndelRealigner',

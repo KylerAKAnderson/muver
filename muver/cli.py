@@ -37,13 +37,30 @@ def main(args=None):
               sorting BAM files. Modify when any FASTQ pair \
               contains >1 billion reads. See manual for guidance \
               in setting this parameter. Default = 1000000.')
+@click.option('--clear_tmps', default='S', type=str,
+              help='Whether to clear the temporary files after a run. \
+              Valid options are (Y)es, On_(S)uccess (Default), and (N)o.')
+@click.option('--old_filter', default=False, type=bool,
+              help='Whether to use the old depth filtering method.')
+@click.option('--dcmodule', default='depth', type=str,
+              help='Name of an alternative depth correction module. \
+              A path to the module may be supplied if the module will not \
+              be found anywhere on PATH. An empty string will turn off depth correction.')
+@click.option('--stage', default=0, type=int,
+              help='Where to enter the pipeline. If the temporary files \
+              have NOT been cleared (see --clear_tmps), the information \
+              from the run will be serialized. Providing a non-zero \
+              stage will instruct Muver to load the serialized data. \
+              Follow the integer codes from the log to indicate the entry point.\
+              Restarting from a later point than the last successful stage \
+              may result in undefined errors and is discouraged. Default = 0')
 @click.argument('reference_assembly', type=click.Path(exists=True))
 @click.argument('fastq_list', type=click.Path(exists=True))
 @click.argument('control_sample_name', type=str)
 @click.argument('experiment_directory', type=str)
 def run_pipeline(reference_assembly, fastq_list, control_sample_name,
                  experiment_directory, processes, excluded_regions,
-                 fwer, max_records):
+                 fwer, max_records, clear_tmps, dcmodule, old_filter, stage):
     '''
     Run MuVer pipeline, starting with FASTQ files.
 
@@ -69,6 +86,10 @@ def run_pipeline(reference_assembly, fastq_list, control_sample_name,
         excluded_regions=excluded_regions,
         fwer=fwer,
         max_records=max_records,
+        clear_tmps=clear_tmps,
+        dcmodule=dcmodule,
+        old_filter=old_filter,
+        stage=stage
     )
 
 @main.command()

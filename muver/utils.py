@@ -1,3 +1,4 @@
+from collections import defaultdict
 import subprocess
 
 
@@ -51,16 +52,12 @@ def read_chrom_sizes(reference_assembly_fn):
     last_chromosome = None
 
     with open(reference_assembly_fn) as f:
-
+        
         for line in f:
-
             if line.startswith('>'):
-
                 last_chromosome = line.split('>')[1].strip()
                 chrom_sizes[last_chromosome] = 0
-
             else:
-
                 chrom_sizes[last_chromosome] += len(line.strip())
 
     return chrom_sizes
@@ -80,23 +77,15 @@ def read_repeats_var(repeats_fn, var):
             start = int(start)
             end = int(end)
             if chromosome not in repeats:
-                repeats[chromosome] = dict()
+                repeats[chromosome] = defaultdict(list)
             if len(sequence) >= 4:
                 for i in range(start, end + 1):
                     if (chromosome, i) in var:
-                        if i in repeats[chromosome]:
-                            repeats[chromosome][i].append({
-                                'sequence': sequence,
-                                'unit': unit,
-                                'start': start,
-                            })
-
-                        else:
-                            repeats[chromosome][i] = [{
-                                'sequence': sequence,
-                                'unit': unit,
-                                'start': start,
-                            }]
+                        repeats[chromosome][i].append({
+                            'sequence': sequence,
+                            'unit': unit,
+                            'start': start,
+                        })
 
     return repeats
 
@@ -114,21 +103,13 @@ def read_repeats(repeats_fn):
             start = int(start)
             end = int(end)
             if chromosome not in repeats:
-                repeats[chromosome] = dict()
+                repeats[chromosome] = defaultdict(list)
             if len(sequence) >= 4:
+                data = {'sequence': sequence,
+                        'unit': unit,
+                        'start': start}
                 for i in range(start, end + 1):
-                    if i in repeats[chromosome]:
-                        repeats[chromosome][i].append({
-                            'sequence': sequence,
-                            'unit': unit,
-                            'start': start,
-                        })
-                    else:
-                        repeats[chromosome][i] = [{
-                            'sequence': sequence,
-                            'unit': unit,
-                            'start': start,
-                        }]
+                    repeats[chromosome][i].append(data)
 
     return repeats
 
@@ -166,7 +147,7 @@ def read_filtered_sites(samples):
 
         with open(sample.filtered_sites) as f:
             for line in f:
-                chromosome, start, end = line.strip().split('\t')
+                chromosome, start, end, *_ = line.strip().split('\t')
                 for position in range(int(start) + 1, int(end) + 1):
                     filtered_sites[sample].add((chromosome, position))
 

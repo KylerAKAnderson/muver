@@ -34,7 +34,7 @@ def genotype_to_allele_counts(genotype, alleles):
     allele_counts = dict()
 
     for allele in alleles:
-      allele_counts[allele] = genotype.count(allele)
+        allele_counts[allele] = genotype.count(allele)
 
     return allele_counts
 
@@ -449,7 +449,7 @@ class Variant(object):
         for sample in [self.control_sample] + \
                 [s for s in self.samples if s != self.control_sample]:
             if (self.depth_flags[sample] and not self.excluded_flag
-                    and self.sample_ploidy[sample] != 0):
+                    and self.sample_ploidy[sample] != 0 and self.sample_ploidy[sample] < 11):
 
                 ploidy = self.sample_ploidy[sample]
                 allele_counts = self.strand_allele_counts[sample]
@@ -798,9 +798,9 @@ class Variant(object):
 
                     #  Check for gain of allele not present
                     if mutation['type'] == 'gain':
-                        gained_allele = mutation['transitions'].keys()[0]
+                        gained_allele = list(mutation['transitions'].keys())[0]
                         if path['endpoint'][gained_allele] < 1:
-                            valid = False
+                            valid = False # it looks as if all the information from here to 'if valid' is meaningless under this condition, so i think we can just continue
 
                     #  Determine LOH flag
                     loh_flag = False
@@ -1035,6 +1035,8 @@ class Variant(object):
                 not self.excluded_flag,
                 not self.filtered_sites_flags[sample],
                 self.allele_coverage_flags[sample],
-                self.sample_subclonal_bias_log_normal[sample] >= p_threshold,
-                self.sample_subclonal_binomial[sample] < p_threshold,
+                (self.sample_subclonal_bias_log_normal[sample] is not None and \
+                self.sample_subclonal_bias_log_normal[sample] >= p_threshold),
+                (self.sample_subclonal_binomial[sample] is not None and \
+                self.sample_subclonal_binomial[sample] < p_threshold),
             ])

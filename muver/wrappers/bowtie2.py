@@ -10,7 +10,7 @@ def align(fastq_1, ref_fn, output_fn, fastq_2=None, p=1):
     assert os.path.exists(fastq_1)
     if fastq_2:
         assert os.path.exists(fastq_2)
-
+    
     if fastq_2:
         quiet_call([
             PATHS['bowtie2'],
@@ -56,7 +56,7 @@ def build(ref_fn):
         os.path.isfile(ref_fn + '.rev.1.bt2') and
         os.path.isfile(ref_fn + '.rev.2.bt2')
     ):
-        quiet_call([
+        quiet_call(['python', #Windows Tweak
             PATHS['bowtie2_build'],
             ref_fn,
             ref_fn,
