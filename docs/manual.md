@@ -1,15 +1,15 @@
-# muver
-muver is an analytical framework developed to improve sensitivity and increase accuracy in mutation identification from high-throughput sequencing data. muver provides significantly increased accuracy in challenging genomic contexts, including low complexity repetitive sequences. The muver framework has been applied to data from mutation accumulation experiments in yeast.
+# MuVer
+MuVer is an analytical framework developed to improve sensitivity and increase accuracy in mutation identification from high-throughput sequencing data. MuVer provides significantly increased accuracy in challenging genomic contexts, including low complexity repetitive sequences. The MuVer framework has been applied to data from mutation accumulation experiments in yeast.
 
 ## Requirements
-muver was developed using Python 3.7.6. In addition to requirements specified in setup.py, muver requires installation of the following tools:
+MuVer was developed using Python 2.7.18, and is maintained on Python 3.7.6. In addition to requirements specified in setup.py, MuVer requires installation of the following tools:
 * [Bowtie2](http://bowtie-bio.sourceforge.net/bowtie2/index.shtml)
 * [GATK, version 3.7-0](https://software.broadinstitute.org/gatk/download/)
 * [picard](https://broadinstitute.github.io/picard/)
 * [samtools](http://www.htslib.org/download/)
 
 ## Installation
-After download, nagivate to the muver directory. Proper function of muver requires the paths to depencies to be set.  To do this, manually set the paths in `paths.cfg` using a text editor.
+After download, nagivate to the muver directory. Proper function of MuVer requires the paths to depencies to be set.  To do this, manually set the paths in `paths.cfg` using a text editor.
 
 After the correct paths have been set, install muver with the following command:
 
@@ -18,7 +18,7 @@ python setup.py install
 ```
 
 ## Functions
-All of muvers functions may be accessed using its command line interface. General usage is as follows:
+All of MuVers functions may be accessed using its command line interface. General usage is as follows:
 
 ```
 muver COMMAND [OPTIONS] [ARGS]...
@@ -42,7 +42,7 @@ Available commands:
 muver run_pipeline [OPTIONS] REFERENCE_ASSEMBLY FASTQ_LIST CONTROL_SAMPLE_NAME EXPERIMENT_DIRECTORY
 ```
 
-Runs the full muver pipeline, from FASTQs to called genotypes and mutations. For details about the mutation calling methodology, see the companion manuscript.
+Runs the full MuVer pipeline, from FASTQs to called genotypes and mutations. For details about the mutation calling methodology, see the companion manuscript.
 
 Input samples and parameters are specified in the `FASTQ_LIST` file. In this file, each row corresponds to an individual sample. The row contents in turn are specified by header fields in the first row. For a complete example, see example_fastq_list.txt.
 
@@ -133,7 +133,7 @@ The sample_info.txt file contains parameters and paths to output files associate
 
   Whether to clear temporary files and serialize the sample information after running the pipe_line. Valid options include 'Yes' (or 'Y'), 'On_Success' (or 'S', this is the Default), and 'No' (or 'N'). '(Y)es' will delete any temporary files even if the run ends in an error whereas 'On_(S)uccess' only deletes them if the run ends successfully. '(N)o' will always leave behind all temporary files.
 
-This behavior is to be used in conjunction with the `--stage` option to resume the pipeline from intermediate stages for manual interventions or interrupted runs.
+  This behavior is to be used in conjunction with the `--stage` option to resume the pipeline from intermediate stages for manual interventions or interrupted runs.
 
 * `--old_filter`
 
