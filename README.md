@@ -1,4 +1,4 @@
-# muver
+# MuVer
 MuVer is an analytical framework developed to improve sensitivity and increase accuracy in mutation identification from high-throughput sequencing data. MuVer provides significantly increased accuracy in challenging genomic contexts, including low complexity repetitive sequences. The MuVer framework has been applied to data from mutation accumulation experiments in yeast. 
 
 ## Requirements
