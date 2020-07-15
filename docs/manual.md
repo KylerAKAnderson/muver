@@ -48,7 +48,7 @@ Input samples and parameters are specified in the `FASTQ_LIST` file. In this fil
 
 The default depth correction is intended for use by the lab developing MuVer. *To turn off depth correction, add the option --dcmodule=''.* For depth profiles that are already sufficiently flat (ignoring potential CNVs) the depth correction will have minimal effect, but may cause artifacts.
 
-The depth submodule refers to an options.cfg file *in the working directory* for tweaking parameters of its procedures. *If the default depth correction is used, this file is* ***NOT*** *optional.* This is because the default depth correction assumes a yeast genome and requires information about chromosome number in order to operate. More information is provided in example_options.cfg.
+The depth submodule refers to an options.cfg file *in the working directory* for tweaking parameters of its procedures. *If the default depth correction is used, this file is* ***NOT*** *optional.* This is because the default depth correction assumes a yeast genome and requires information about chromosome number in order to operate. More information is provided in options.cfg.
 
 Prior to running, the reference assembly must be indexed and repeats called. To do this, run the muver functions [index_reference](#index_reference) and [create_repeat_file](#create_repeat_file).
 
