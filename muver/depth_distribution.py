@@ -15,9 +15,15 @@ def read_raw_depths_mpileup(mpileup_file, chrom_sizes):
     with open(mpileup_file) as f:
         for line in f:
 
-            line_split = line.strip().split()
-
-            chromosome, position, reference_base, coverage = line_split[:4]
+            line_split = line.strip().split('\t')
+            
+            try:
+                chromosome, position, reference_base, coverage = line_split[:4]
+            except ValueError:
+                with open('Latest','w') as OUT:
+                    OUT.write(repr(line_split))
+                raise
+                
             position = int(position)
             coverage = float(coverage)
 
@@ -159,7 +165,7 @@ def calculate_depth_distribution_mpileup(input_mpileup, output, ploidy,
     with open(input_mpileup) as f:
         for line in f:
 
-            line_split = line.strip().split()
+            line_split = line.strip().split('\t')
 
             chromosome, position, reference_base, coverage = line_split[:4]
             position = int(position)

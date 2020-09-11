@@ -15,16 +15,15 @@ from repeat_indels import fit_repeat_indel_rates, read_fits
 from repeats import create_repeat_file
 from sample import (Sample, read_samples_from_text,
                     generate_experiment_directory, write_sample_info_file)
-from utils import read_repeats
+from utils import read_repeats, read_config
 from variant_list import VariantList
 from wrappers import bowtie2, gatk, picard, samtools
 from depth import describe_regions, correct_depths
 
-
 def process_sams(args):
     '''
     Process SAM files for a given sample.  Perform the following:
-
+    
     - Remove read pairs on different chromosomes.
     - Filter by MAPQ value.
     - Add read groups based on sample name.
@@ -134,9 +133,12 @@ def analyze_depth_distribution(args):
     Return the passed index and the standard deviation of the log-normal
     distribution fit to strand bias values.
     '''
-    index, sample_name, intermediate_files, reference_assembly, experiment_directory,\
-      chrom_sizes, ploidy, cnv_regions, old_filter, dcmodule, onstage, tostage = args
+    index, sample_name, intermediate_files,\
+      ploidy, cnv_regions, details = args
 
+    reference_assembly, experiment_directory, chrom_sizes,\
+      old_filter, dcmodule, onstage, tostage, options = details
+    
     report = StringIO("")
     log = SimpleLogger(where=report, level=1)
     
@@ -158,7 +160,7 @@ def analyze_depth_distribution(args):
     
     if nextStage():
         log('- - Calculating Strand Bias Dist. ({})'.format(onstage))
-        _, strand_bias_std, = bias_dist.calculate_bias_distribution_mpileup(
+        _, strand_bias_std = bias_dist.calculate_bias_distribution_mpileup(
             intermediate_files['_mpileup_out'],
             intermediate_files['strand_bias_distribution'],
         )
@@ -184,7 +186,8 @@ def analyze_depth_distribution(args):
                 depths,
                 sample_name,
                 ploidy,
-                experiment_directory
+                experiment_directory,
+                options
             )
             log.check()
     
@@ -196,7 +199,8 @@ def analyze_depth_distribution(args):
                 depths,
                 sample_name,
                 ploidy,
-                experiment_directory
+                experiment_directory,
+                options
             )
             log.check()
     
@@ -244,7 +248,8 @@ def analyze_depth_distribution(args):
                 cnvbg,
                 intermediate_files['filtered_sites'],
                 intermediate_files['depth_distribution'],
-                experiment_directory
+                experiment_directory,
+                options
             )
             log.check()
 
@@ -260,6 +265,7 @@ def run_pipeline(reference_assembly, fastq_list, control_sample,
     and temporary file management. Passes necessary information to the full _run_pipeline
     '''
     
+    # Sample-independent preparation
     if dcmodule is 'None': dcmodule = None
     if dcmodule and dcmodule is not 'kunkel':
         try:
@@ -269,62 +275,14 @@ def run_pipeline(reference_assembly, fastq_list, control_sample,
                 sys.stderr.write(
                     ('Cannot locate depth correction '\
                      'module: {}.').format(dcmodule))
-                return
-    
-    success = False
-    try:
-        if not stage:
-            generate_experiment_directory(experiment_directory)
-            samples = read_samples_from_text(
-                fastq_list, exp_dir=experiment_directory)
-            for sample in samples:
-                sample.generate_intermediate_files()
-        else:
-            frompickle = os.path.join(experiment_directory, 'MuverPickles')
-            if not os.path.exists(frompickle):
+            else:
                 sys.stderr.write(
-                    ('No intermittent run found. '\
-                    'Make sure {} is correctly placed, ' \
-                    'or run Muver at least once with ' \
-                    '--clear_tmps=N and --stage=0 (default).').format(frompickle))
-                return
-            with open(frompickle, 'rb') as IN:
-                samples = pickle.load(IN)
-        
-        control_sample = next(
-                (x for x in samples if x.sample_name == control_sample),
-                None,
-            )     
-        _run_pipeline(reference_assembly, samples, control_sample,
-                 experiment_directory, p, excluded_regions,
-                 fwer, max_records, dcmodule, old_filter, stage)
-        
-        success = True
-    finally:
-        if clear_tmps is 'Y' or clear_tmps is 'Yes' or \
-           ((clear_tmps is 'S' or clear_tmps is 'On_Success') and success):
-            for sample in samples:
-                sample.clear_temp_files()
-                sample.clear_temp_file_indices()
-        else:
-            pickleto = os.path.join(experiment_directory, 'MuverPickles')
-            if not os.path.exists(experiment_directory):
-                return
-            with open(pickleto, 'wb') as OUT:
-                pickle.dump(samples, OUT)
-
-def _run_pipeline(reference_assembly, samples, control_sample,
-                 experiment_directory, p=1, excluded_regions=None,
-                 fwer=0.01, max_records=1000000, dcmodule=None,
-                 old_filter=False, tostage=0):
-    '''
-    Run the MuVer pipeline considering input FASTQ files. All files written
-    to the experiment directory.
-    '''
-    
-    # Preamble
+                    '{} was not able to be imported.'.format(dcmodule))
+            return
     
     repeat_file = '{}.repeats'.format(os.path.splitext(reference_assembly)[0])
+    uconfig_file = '{}.cfg'.format(os.path.splitext(reference_assembly)[0])
+    options = dict()
     
     if not reference.check_reference_indices(reference_assembly):
         sys.stderr.write('Reference assembly not indexed. Run '
@@ -334,7 +292,66 @@ def _run_pipeline(reference_assembly, samples, control_sample,
         sys.stderr.write('Repeats not found for reference assembly. Run '
             '"muver create_repeat_file".\n')
         return
+    if os.path.exists(uconfig_file):
+        with open(uconfig_file, 'r') as IN:
+            content = IN.read()
+            options.update(read_config(content))
     
+    success = False
+    try:
+        # Sample preparation
+        samples, opt2 = read_samples_from_text(
+            fastq_list, exp_dir=experiment_directory)
+        options.update(opt2)
+        
+        if not stage:
+            generate_experiment_directory(experiment_directory)
+            for sample in samples:
+                sample.generate_intermediate_files()
+        else:
+            frompickle = os.path.join(experiment_directory, 'MuverPickle')
+            if not os.path.exists(frompickle):
+                sys.stderr.write(
+                   ('No intermittent run found. '\
+                    'Make sure {} is correctly placed, ' \
+                    'or run Muver at least once with ' \
+                    '--clear_tmps=N and --stage=0 (default).').format(frompickle))
+                return
+            with open(frompickle, 'rb') as IN:
+                samples = pickle.load(IN)
+        
+        control_sample = next(
+                (x for x in samples if x.sample_name == control_sample), None)
+        
+        # Hand off for processing
+        _run_pipeline(reference_assembly, samples, control_sample,
+                 experiment_directory, options, p, excluded_regions,
+                 fwer, max_records, dcmodule, old_filter, stage)
+        
+        success = True
+    finally:
+        if clear_tmps in ['Y', 'Yes'] or \
+           ((clear_tmps in ['S', 'On_Success']) and success):
+            for sample in samples:
+                sample.clear_temp_files()
+                sample.clear_temp_file_indices()
+        else:
+            pickleto = os.path.join(experiment_directory, 'MuverPickle')
+            if not os.path.exists(experiment_directory):
+                return
+            with open(pickleto, 'wb') as OUT:
+                pickle.dump(samples, OUT)
+
+def _run_pipeline(reference_assembly, samples, control_sample,
+                 experiment_directory, options, p=1, excluded_regions=None,
+                 fwer=0.01, max_records=1000000, dcmodule=None,
+                 old_filter=False, tostage=0):
+    '''
+    Run the MuVer pipeline considering input FASTQ files. All files written
+    to the experiment directory.
+    '''
+    
+    # Preamble for logging and state
     t = time.strftime('%c')
     stamp = "\n{0}\n== On {1} ==\n{0}\n".format("="*(9+len(t)), t)
     log = SimpleLogger()
@@ -408,20 +425,16 @@ def _run_pipeline(reference_assembly, samples, control_sample,
     chrom_sizes = reference.read_chrom_sizes(reference_assembly)
     
     if nextStage():
+        details = [reference_assembly, experiment_directory, chrom_sizes,
+               old_filter, dcmodule, onstage, tostage, options]
         log('Analyzing Depth ({})'.format(onstage), '\n')
         results = pool.map(analyze_depth_distribution, zip(
             range(len(samples)),
             [s.sample_name for s in samples],
             [s.get_intermediate_file_names() for s in samples],
-            repeat(reference_assembly),
-            repeat(experiment_directory),
-            repeat(chrom_sizes),
             [s.ploidy for s in samples],
             [s.cnv_regions for s in samples],
-            repeat(old_filter),
-            repeat(dcmodule),
-            repeat(onstage),
-            repeat(tostage)
+            repeat(details),
         ))
         for index, strand_bias_std, cnvbg, report in results:
             samples[index].strand_bias_std = strand_bias_std
@@ -430,6 +443,8 @@ def _run_pipeline(reference_assembly, samples, control_sample,
                 samples[index].cnv_regions = samples[index].read_cnv_bedgraph()
             log.raw(report)  
         log.timer.lap()
+    
+    repeat_file = '{}.repeats'.format(os.path.splitext(reference_assembly)[0])
     
     if nextStage():
         log('Characterize Repeats ({})'.format(onstage))

@@ -152,3 +152,21 @@ def read_filtered_sites(samples):
                     filtered_sites[sample].add((chromosome, position))
 
     return filtered_sites
+
+def read_config(text):
+    '''
+    Parses a simple format for loading options.
+    '''
+    options = dict()
+    
+    conf = text.split('\n')
+    for line in conf:
+        line = line.strip()
+        if not len(line): continue
+        if line[0] == '[': continue
+        if line[0] == '#': continue
+        split = line.split('=')
+        options[split[0].strip()] = split[1].strip()
+        
+    return options
+    

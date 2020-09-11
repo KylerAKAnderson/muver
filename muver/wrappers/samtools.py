@@ -3,7 +3,6 @@ import subprocess
 
 from __init__ import PATHS, quiet_call
 
-
 def mapq_filter(in_sam, out_sam, q=20):
     '''
     Filter reads by MAPQ value using samtools view.

@@ -4,9 +4,7 @@ import numpy as np
 import pandas as pd
 import scipy.signal as sgnl
 
-import stats, curves
-from util import isin
-import expositor as xpst
+import util, stats, curves
 
 '''
 Created Feb 2020
@@ -30,7 +28,7 @@ def pkblocks(depths, gmed, gstd, ploidy, b=1000, saBins=1000, pkAlpha=0.05, **pk
     
     meds, stds = blocks.Median, blocks.Std
     medM = np.abs(meds - gmed) < 3*gstd
-    stdM = isin(stds, 0.01/ploidy, 1/ploidy)
+    stdM = util.isin(stds, 0.01/ploidy, 1/ploidy)
     bivTools = getBiv(meds, stds, medM, stdM, saBins)
     
     pks, _, _ = peaksInSlope(depths, **pkOpts)
@@ -38,7 +36,7 @@ def pkblocks(depths, gmed, gstd, ploidy, b=1000, saBins=1000, pkAlpha=0.05, **pk
              for xrpks in pks]
     
     def addToMask(i, j, L, R):
-        pksm[i-1][isin(pks[i-1], L, R)] = True
+        pksm[i-1][util.isin(pks[i-1], L, R)] = True
     
     inOutliers(blocks, bivTools, addToMask, pkAlpha)
     inOutliers(offsetblocks, bivTools, addToMask, pkAlpha)
@@ -60,7 +58,7 @@ def getBiv(meds, stds, medM=None, stdM=None, saBins=1000):
     if medM is None: 
         medM = np.abs(meds - 1) < 0.5
     if stdM is None: 
-        stdM = isin(stds, 0.01, 0.5)
+        stdM = util.isin(stds, 0.01, 0.5)
     
     mmeds = np.array(meds[medM], dtype=np.float64)
     mstds = np.array(stds[stdM], dtype=np.float64)
@@ -73,15 +71,6 @@ def getBiv(meds, stds, medM=None, stdM=None, saBins=1000):
     alphaToZ.Zs = Z
     
     return biv, d2V, alphaToZ
-    
-    #mhd = [mmeds.loc[i] for i in range(1,17)]
-    #shd = [mstds.loc[i] for i in range(1,17)]
-    #xpst.bivNalpha(meds, stds, alphaToZ(0.05), 0.05, X, Y, Z)
-    #xpst.histNdist(mhd, biv.norm, stacked=True, 
-    #               title='Median Normal Distribution')
-    #xpst.histNdist(shd, biv.nct, stacked=True, 
-    #               title='Std Dev. Noncentral T Distribution')
-    
     
 def summarizeBlocks(blocks, offset=0, 
         summarize=lambda x: [np.median(x), np.std(x), np.max(x)-np.min(x)],
@@ -122,21 +111,3 @@ def peaksInSlope(depths, medWin=200, slpWin=200, height=None,
     pks = [sgnl.find_peaks(rSlp.abs(), **pkOpts)[0] for rSlp in rSlps]
         
     return pks, rMeds, rSlps
-
-#def binit(depths, b=1000):
-#    ns = [len(d)//b for d in depths]
-#    blocks = [summarizeBlocks(np.array_split(d, n)) 
-#             for d, n in zip(depths, ns)]
-#    return pd.concat(blocks, **DFOpts)
-
-#def blockBy(depths, where, 
-#        summarize=lambda x: [np.median(x), np.std(x)],
-#        labels=['Median', 'Std']):
-#    newBlocks = [summarizeBlocks(
-#                     np.split(d, xrw), 
-#                     summarize=summarize, 
-#                     labels=labels)
-#                 for d, xrw in zip(depths, where)]
-#    
-#    return pd.concat(newBlocks, **DFOpts)
-

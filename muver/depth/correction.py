@@ -8,7 +8,6 @@ import numpy as np
 import numpy.ma as npma
 from scipy.optimize import curve_fit
 
-import expositor as xpst
 from util import quietly
 from stats import rmsd
 from curves import BiHypa
@@ -18,12 +17,11 @@ Created Oct 2019
 Last Edited Jun 22, 2020
 '''
 
-# disconnected from former kkit.sample system
-# Send in masked arrays, mask by threshold first, returns corrected_depths, calls to expositor
+# Send in masked arrays, mask by threshold first, returns corrected_depths
 def correctSmile(depths, sml=250000, statn=500, fitn=20):
     
     if not sml%(statn * fitn): sml, statn, fitn = 250000, 500, 20
-    ds = [d for i,d in enumerate(depths) if i not in [0, 5, 2, 8, 11]]
+    ds = depths[4:]
     
     ends = np.zeros((2*len(ds), sml))
     for i, d in enumerate(ds):
@@ -59,14 +57,13 @@ def correctSmile(depths, sml=250000, statn=500, fitn=20):
     corrected_depths = [npma.array(d.data/fs, mask=d.mask)
                         for d, fs in zip(depths, fit_smiles)]
     
-    #xpst.smileCorrection(depths, fit_smiles, corrected_depths)
     return corrected_depths
 
 def correctBulge(depths, n=5, rmsdT=0.05, resT=0.5):
     
     lengths = np.array([len(d) for d in depths])
     X = np.tile(np.log10(lengths), (n, 1)).T
-    Y = np.tile(np.arange(n), (16, 1))
+    Y = np.tile(np.arange(n), (len(depths), 1))
     
     Z = []
     for d in depths:
@@ -77,11 +74,10 @@ def correctBulge(depths, n=5, rmsdT=0.05, resT=0.5):
         
     Z = np.array(Z)
     M = Z > 0.1
-    M[11,:] = False
     
     XYZ = np.array([X,Y,Z])
     
-    xi, xm, xf = X[(0,4,3),0]
+    xi, xm, xf = X[(0,5,-1),0]
     biHypa = BiHypa(xi, xm, xf, 0, n-1)
     RMSD = fitBiHypa(*XYZ[:, M], biHypa)
     
@@ -107,7 +103,6 @@ def correctBulge(depths, n=5, rmsdT=0.05, resT=0.5):
     corrected_depths = [npma.array(d.data/fb, mask=d.mask)
                         for d, fb in zip(depths, fit_bulge)]
     
-    #xpst.bulgeCorrection(XYZ, M, rems, resMask, biHypa)
     return corrected_depths, biHypa.Z
 
 def fitBiHypa(X, Y, Z, hypa):
@@ -124,9 +119,9 @@ def reflat(lst):
 
 def refineHypa(XYZ, M, biHypa, cRMSD, rmsdT=0.05):
     xrM = ~np.all(~M, axis=1)
-    remLim = 6 - sum(~xrM) # Always <= 5 since chr12 is manually cut
+    remLim = 5 - sum(~xrM)
     
-    left, right = np.array([0, 5, 2, 8, 7, 4]), np.array([9, 10, 12, 1, 13, 15, 14, 6, 3, 11])
+    left, right = np.arange(6), np.arange(6, 16)
     left = left[xrM[left,],]
     right = right[xrM[right,],]
     

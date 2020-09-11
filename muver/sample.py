@@ -6,6 +6,7 @@ import time
 from tempfile import NamedTemporaryFile, mkdtemp
 
 from repeat_indels import read_fits
+from utils import read_config
 
 
 class Sample(object):
@@ -238,8 +239,10 @@ def read_samples_from_text(sample_info_fn, exp_dir=None):
     samples = []
 
     with open(sample_info_fn) as f:
-
-        reader = csv.DictReader(f, delimiter='\t')
+        text = f.read()
+        content = text.split('[Config]')
+        
+        reader = csv.DictReader(content[0].split('\n'), delimiter='\t')
         fastqs = None
 
         for row in reader:
@@ -263,8 +266,12 @@ def read_samples_from_text(sample_info_fn, exp_dir=None):
                                kwargs=row, exp_dir=exp_dir))
             except KeyError:
                 raise ValueError('Sample Name required in sample file.')
-
-    return samples
+        
+        options = dict()
+        if len(content) > 1:
+            options = read_config(content[1].strip())
+            
+    return samples, options
 
 
 def generate_experiment_directory(exp_dir):
