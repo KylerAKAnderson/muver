@@ -8,11 +8,13 @@ import scipy.stats as sps
 
 '''
 Created Feb 2020
-Last edited on Jun 22, 2020
+Last edited on Sept 9, 2020
 
-This module should probably also include the shoulder simulation code.
+This module may probably also include the shoulder simulation code in the future.
 While muver will probably ship with the Shoulder Parameters csv,
 it should be here so that the user can generate it.
+
+@author: Kyler Anderson
 '''
 
 parameterFile = os.path.join(
@@ -68,7 +70,7 @@ def shoulderMaker(x, h, r, m, s):
     f2 = sps.norm.sf(x, mu-980-r/2, sig) * h/2
     return f1 + f2
 
-def identifyShoulderedRegions(depths, ploidy, readLength=100, rmsdT=0.90):
+def identifyShoulderedRegions(depths, ploidy, readLength=150, rmsdT=0.90, output=None):
     tP, bP = 2*readLength, 4*readLength
     corrspace = 3*readLength
     
@@ -122,20 +124,25 @@ def identifyShoulderedRegions(depths, ploidy, readLength=100, rmsdT=0.90):
         rightShoulders.append(UpShoulders)
         
         for x in DownShoulders:
-            allShoulders.append(xr[x-tP:x+bP])
+            sh = xr[x-tP:x+bP]
+            if len(sh) < 6*readLength: continue
+            allShoulders.append(sh)
 
         for x in UpShoulders:
-            allShoulders.append(xr[x+tP-1:x-bP-1:-1])
-
-    allShoulders = np.array(allShoulders)
-    allShoulders = allShoulders[allShoulders[:,-1] < 0.3]
+            sh = xr[x+tP-1:x-bP-1:-1]
+            if len(sh) < 6*readLength: continue
+            allShoulders.append(sh)
+    
+    allShoulders = np.atleast_2d(allShoulders)
+    allShoulders = allShoulders[(allShoulders[:,-1] < 0.3)]
     medianProfile = np.median(allShoulders, axis=0)
     X = np.arange(-tP, bP)
     popt, _ = optm.curve_fit(shoulderMaker, X, medianProfile, 
         bounds=([0.5, 50, 200, 25], [2, 150, 500, 175]))
-    # output popt somewhere
-    # fitProfile = shoulderMaker(X, *popt)
-    # xpst plot of found shoulders and fit
+    with open(os.path.join(output,\
+         'non-unique_sim_param_fit.txt'), 'w') as OUT:
+        OUT.write('Height\tRead Length\tFragment Mean\tFragment StD.\n')
+        OUT.write('{}\t{}\t{}\t{}'.format(*popt))
     
     nuwhere, nulims = [] ,[]
     for i in range(16):

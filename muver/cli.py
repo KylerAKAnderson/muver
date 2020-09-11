@@ -292,6 +292,8 @@ def calculate_depth_distribution(bedgraph_file, reference_assembly,
                                  merge_window):
     '''
     Calculate distribution of depths in a bedGraph file.
+    
+    This is used for Muver 1.0 depth filtering.
     '''
     mu, sigma = calculate_depth_distribution_bedgraph(
         bedgraph_file,

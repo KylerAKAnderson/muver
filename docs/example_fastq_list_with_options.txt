@@ -1,0 +1,38 @@
+Sample Name Mate 1 FASTQ	Mate 2 FASTQ	Ploidy	CNV bedGraph
+parent	parent.1.fastq.gz	parent.2.fastq.gz	2	parent_CNVs.bedGraph
+progeny_1	progeny_1.1.fastq.gz	progeny_1.2.fastq.gz	2	progeny_1_CNVs.bedGraph
+progeny_2	progeny_2.1.fastq.gz	progeny_2.2.fastq.gz	2	progeny_2_CNVs.bedGraph
+progeny_3	progeny_3.1.fastq.gz	progeny_3.2.fastq.gz	2	progeny_3_CNVs.bedGraph
+progeny_4	progeny_4.1.fastq.gz	progeny_4.2.fastq.gz	2	progeny_4_CNVs.bedGraph
+[Config]
+# From here down is optional, but if you have options active below here, "[Config]" must be present
+
+# '#' indicates a comment line, as does '[' effectively.
+# All currently exposed variables for the depth submodule are listed here, alongside their default values.
+# To activate a setting, remove the '#' from the front of the line.
+# This file should be renamed to match your reference assembly, keeping the '.cfg'
+
+#rDNAxrm=<name_of_chr_in_reference>
+#rDNAreg=451483,488905
+
+[Smile_Correction]
+#sml=250000
+#statn=500
+#fitn=20
+
+[Bulge_Correction]
+#n=5
+#rmsdT=0.05
+#resT=0.5
+
+[Depth based CNV Finding]
+#readLength=150
+#slant_rmsdT=0.90
+
+# The following are arguments to peak finding in the slope curve of the depth profile
+#outlier_alpha=0.05
+#peak_width=100
+#peak_spread=200
+
+
+#small_region=500

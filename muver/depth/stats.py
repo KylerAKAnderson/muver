@@ -2,13 +2,13 @@ import pandas as pd
 import numpy as np
 import scipy.stats as sps
 
-import curves
-from util import quietly
+import curves, util
 
 '''
 Created Jan 2020
-Last edited on Jul 15, 2020
+Last edited on Jan 22, 2020
 
+@author: Kyler Anderson
 '''
 
 def globalSummary(ds):
@@ -46,8 +46,8 @@ class NormNct():
     '''A 2-D distribution, the outer product of a Normal and Noncentral-T, assumed independent.'''
     
     def fit(xData, yData):
-        normps = quietly(sps.norm.fit, xData)
-        nctps = quietly(sps.nct.fit, yData)
+        normps = util.quietly(sps.norm.fit, xData)
+        nctps = util.quietly(sps.nct.fit, yData)
         return NormNct(*normps,*nctps)
     
     def __init__(self, mu, sg, df, nc, lc, sc):

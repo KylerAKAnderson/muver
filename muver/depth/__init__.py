@@ -7,7 +7,6 @@ import scipy.stats as sps
 
 import correction as crct
 import blocking as blkg
-import expositor as xpst
 import curves
 from stats import globalSummary
 from shoulder import identifyShoulderedRegions
@@ -16,33 +15,33 @@ from shoulder import identifyShoulderedRegions
 
 __author__ = """Kyler Anderson"""
 __email__ = 'andersonkk@nih.gov'
-__version__ = '0.1.5'
 
 def correct_depths(depthsByName, sample_name, ploidy, 
-  output_folder='depth correction output'):
+  output_folder='depth correction output', options={}):
     
     # Initialization
-    options = dict()
-    with open('options.cfg', 'r') as cfg:
-        for line in cfg:
-            line = line.strip()
-            if not len(line): continue
-            if line[0] == '[': continue
-            if line[0] == '#': continue
-            split = line.split('=')
-            options[split[0]] = split[1]
-            
-    orderedNames = []
-    with open(options['chr_names'], 'r') as info:
-        orderedNames = [line for line in info]
-    
     xpst.cSam = sample_name
     if not output_folder:
         xpst.producing = False
-    else: xpst.opf = pth.join(output_folder, 'depth_submodule_exposition')
+    else: xpst.opf = output_folder
     
     # Preparation
-    depths = [depthsByName[orderedNames[i]] for i in range(len(orderedNames))]
+    depthsKey = [(name, d, len(d)) for name, d in depthsByName.items()]
+    depthsKey = sorted(depthsKey, key=lambda x: x[2])
+    depthsKey = depthsKey[1:] # exclude the short mitochondrial genome
+    depths = [key[1] for key in depthsKey]
+    
+    rDNAxrm = None
+    rDNAi = None
+    rDNAf = None
+    if 'rDNAxrm' in options:
+        rDNAxrm = next((i for i,(name,_,_) in enumerate(depthsKey)
+                    if name == options['rDNAxrm']), None)
+        if 'rDNAreg' in options:
+            reej = options['rDNAreg']
+            reeji, reejf = reej.split(',')
+            rDNAi = int(reeji.strip())
+            rDNAf = int(reejf.strip())
     
     globalmean = globalSummary(depths)[0]
     depths = [d/globalmean for d in depths]
@@ -66,7 +65,7 @@ def correct_depths(depthsByName, sample_name, ploidy,
         d.mask |= oM
     
     # Correction
-    chr12o = depths[11].data.copy()
+    if rDNAxrm: rDNAxrmO = depths[rDNAxrm].data.copy()
     
     depths = crct.correctSmile(
         depths, 
@@ -74,7 +73,7 @@ def correct_depths(depthsByName, sample_name, ploidy,
         int(options.get('statn', 500)), 
         int(options.get('fitn', 20)))
     
-    chr12s = depths[11].data.copy()
+    if rDNAxrm: rDNAxrmS = depths[rDNAxrm].data.copy()
     
     depths, Zs = crct.correctBulge(
         depths,
@@ -82,33 +81,39 @@ def correct_depths(depthsByName, sample_name, ploidy,
         float(options.get('rmsdT', 0.05)), 
         float(options.get('resT', 0.5))/ploidy)
     
-    depths[11], rDNArepeats \
-        = re12(chr12o, chr12s.data, lengths,
-               Zs, int(options.get('n', 5)))
-    #output rDNA repeats somewhere
+    if rDNAxrm:
+        depths[rDNAxrm], rDNArepeats \
+            = rDNAFix(rDNAxrmO, rDNAxrmS.data, lengths,
+                   Zs, int(options.get('n', 5)), rDNAi, rDNAf)
+        if output_folder:
+            with open(pth.join(output_folder, 'rDNA_fix_info.txt'), 'w') as OUT:
+                OUT.write('Estimated rDNA repeats on {}: {}'.format(rDNAxrm, rDNArepeats))
     
     # Reversion
     depths = [(d.data*globalmean).astype(np.int64) for d in depths]
-    depthsByName.update(dict(zip(orderedNames, depths)))
+    depthsOut = dict()
+    depthsOut.update(depthsByName)
+    for i, (name, _, _) in enumerate(depthsKey):
+        depthsOut[name] = depths[i]
     
-    return depthsByName
+    return depthsOut
     
-def re12(chr12o, chr12s, lengths, Zs, n):
+def rDNAFix(rDNAxrmO, rDNAxrmS, lengths, Zs, n, ri, rf):
     dy = Zs[5] - Zs[3]
-    dx = np.log10(lengths[3]/lengths[4])
+    dx = np.log10(lengths[5]/lengths[-1])
     mq5 = dy/dx
-    dlink = np.max(chr12o[451483:488905])
+    dlink = np.max(rDNAxrmO[ri:rf])
     nlink = int((dlink + 13.434*mq5 + 1)/(0.7973*mq5 + 1))
     rDNArepeats = nlink+1
 
     # determine final length
-    l0 = lengths[11]
-    lul = 8222 + 915 # rDNAunit = 8222, rDNAlink = 915
+    l0 = len(rDNAxrmO)
+    lul = 8222 + 915 # rDNAunit = 8222, rDNAlink = 915 # these should probably be made options as well
     dl = (nlink-1)*lul
     lf = l0 + dl
 
     # recreate hypa
-    xi, xm, xf = np.log10(lengths[(0,4,3),])
+    xi, xm, xf = np.log10(lengths[(0,5,15),])
     yi, yf = 0, n-1
 
     biHypa = curves.BiHypa(xi, xm, xf, yi, yf)
@@ -127,25 +132,17 @@ def re12(chr12o, chr12s, lengths, Zs, n):
 
     # create correction, clip relevant middle, apply
     k = stitch(lf)
-    k = np.concatenate((k[:451483], k[451483+dl:]))
+    k = np.concatenate((k[:ri], k[ri+dl:]))
     
-    return chr12s/k, rDNArepeats
+    return rDNAxrmS/k, rDNArepeats
 
 def describe_regions(depthsByName, ploidy, sample, cnv_bedgraph,
-                     filter_bed, distribution_info=None, output_folder='blocking output'):
-    options = dict()
-    
-    if pth.exists('options.cfg'):
-        with open('options.cfg') as cfg:
-            for line in cfg:
-                line = line.strip()
-                if not len(line): continue
-                if line[0] == '[': continue
-                if line[0] == '#': continue
-                split = line.split('=')
-                options[split[0]] = split[1]
-    
+                     filter_bed, distribution_info=None, 
+                     output_folder='blocking output', options={}):
     depths = list(depthsByName.values())
+    depths = sorted(depths, key=lambda x: len(x))
+    depths = depths[1:]
+                   
     gmean, gmed, gstd = globalSummary(depths)
     depths = [d/gmean for d in depths]
     lengths = [len(d) for d in depths]
@@ -154,7 +151,8 @@ def describe_regions(depthsByName, ploidy, sample, cnv_bedgraph,
         depths,
         ploidy,
         options.get('readLength', 150),
-        options.get('slant_rmsdT', 0.90))
+        options.get('slant_rmsdT', 0.90),
+        output_folder)
     nuMs = [np.full(l, False, np.bool) for l in lengths]
     for xrnuM, xrnulims in zip(nuMs, nulims):
         for (left, right) in xrnulims:
@@ -199,8 +197,8 @@ def describe_regions(depthsByName, ploidy, sample, cnv_bedgraph,
         where.append(xrwhere.astype(np.int64))
 
     blockQls = []
-    for xrwhere, xrlims in zip(where, nulims):            ######## THIS
-        xrnuIs, xrnuFs = [], [] if not len(xrlims) else xrlims ######## HERE
+    for xrwhere, xrlims in zip(where, nulims):            
+        xrnuIs, xrnuFs = [], [] if not len(xrlims) else xrlims
         xrblqls = np.full(len(xrwhere)+1, False, np.bool)
         xrblqls[1:] = np.isin(xrwhere, xrnuIs)
         xrblqls[:-1] = np.isin(xrwhere, xrnuFs)
@@ -211,8 +209,8 @@ def describe_regions(depthsByName, ploidy, sample, cnv_bedgraph,
     qdblocks = [blkg.summarizeBlocks(np.split(d, xrw))
                 for d, xrw in zip(depths, where)]
     qdblocks = pd.concat(qdblocks, **blkg.DFOpts)
-    qdblocks = blkg.addPloidyEst(qdblocks, ploidy, mu, mo)   ######## TO
-    qdblocks = qdblocks.assign(Quality=blockQls)             ######## HERE
+    qdblocks = blkg.addPloidyEst(qdblocks, ploidy, mu, mo)
+    qdblocks = qdblocks.assign(Quality=blockQls)
     
     # welche's t, merge statistically not different
     ts = []
@@ -249,8 +247,8 @@ def describe_regions(depthsByName, ploidy, sample, cnv_bedgraph,
         where.append(xrwhere)
 
     blockQls = []
-    for xrwhere, xrlims in zip(where, nulims):            ######## AND THIS
-        xrnuIs, xrnuFs = [], [] if not len(xrlims) else xrlims ######## HERE
+    for xrwhere, xrlims in zip(where, nulims):
+        xrnuIs, xrnuFs = [], [] if not len(xrlims) else xrlims
         xrblqls = np.full(len(xrwhere)+1, False, np.bool)
         xrblqls[1:] = np.isin(xrwhere, xrnuIs)
         xrblqls[:-1] = np.isin(xrwhere, xrnuFs)
@@ -261,8 +259,8 @@ def describe_regions(depthsByName, ploidy, sample, cnv_bedgraph,
     tblocks = [blkg.summarizeBlocks(np.split(d, xrw))
                for d, xrw in zip(depths, where)]
     tblocks = pd.concat(tblocks, **blkg.DFOpts)
-    tblocks = blkg.addPloidyEst(tblocks, ploidy, mu, mo)     ######## TO
-    tblocks = tblocks.assign(Quality=blockQls)                ######## HERE
+    tblocks = blkg.addPloidyEst(tblocks, ploidy, mu, mo)
+    tblocks = tblocks.assign(Quality=blockQls)
     
     # clasify resulting regions, guess ploidies
     ploidies = []
@@ -288,6 +286,9 @@ def describe_regions(depthsByName, ploidy, sample, cnv_bedgraph,
         # Non-unique regions
         nonUnique = ql == 'Non-unique'
         
+        # Little Divets
+        lilDiv = n < smallSpec
+        
         if len(pl) > 3:
             # small, 0 regions between non-uniques
             wedged = (pl[1:-1] == 0) &\
@@ -306,7 +307,7 @@ def describe_regions(depthsByName, ploidy, sample, cnv_bedgraph,
             wedged = np.full(len(pl), False, np.bool)
             slope = np.full(len(pl), False, np.bool)
         
-        xrProbableCNVs = ~(canonPloid | nonUnique | wedged | slope)
+        xrProbableCNVs = ~(canonPloid | nonUnique | wedged | slope | lilDiv)
         probablyCNVs.append(xrProbableCNVs)
         
         xrNoise = wedged | slope

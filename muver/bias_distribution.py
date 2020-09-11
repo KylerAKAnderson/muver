@@ -28,7 +28,7 @@ def calculate_bias_distribution(_iter, output): # removed unused ref_fn argument
         plus_tally = defaultdict(int)
         minus_tally = defaultdict(int)
 
-        line_split = line.strip().split()
+        line_split = line.strip().split('\t')
 
         reference, coverage = line_split[2:4]
         if int(coverage) > 0:
@@ -52,9 +52,10 @@ def calculate_bias_distribution(_iter, output): # removed unused ref_fn argument
             elif re.match('[+-]', bases[i]):
                 indel_type = bases[i]
                 i += 1
-
-                indel_length = int(bases[i])
-                i += 1
+                
+                count = re.match('[0-9]+', bases[i:])[0]
+                i += len(count)
+                indel_length = int(count)
 
                 indel = indel_type + bases[i:i+indel_length].upper()
                 if re.match('[ACGT]', bases[i:i+indel_length]):

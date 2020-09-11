@@ -8,9 +8,6 @@ Last Edited on Jan 22, 2020
 @author: andersonkk
 '''
 
-fitting = False
-paramTrails = []
-
 def reduce(f,params):
     def reduced(x):
         return f(x,*params)

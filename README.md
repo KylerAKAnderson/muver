@@ -18,9 +18,6 @@ python setup.py install
 A [Docker image](https://hub.docker.com/r/lavenderca/muver/) is also available.
 
 ## Usage
-To run, a copy of 'options.cfg' may be needed in the working directory.
-Read 'options.cfg' for further setup instructions and see the `--dcmodule` option under `run_pipeline` in the [manual](docs/manual.md#run_pipeline) for information.
-
 All of MuVer's functions may be accessed using its command line interface. General usage is as follows:
 ```
 muver COMMAND [OPTIONS] [ARGS]...
@@ -47,3 +44,4 @@ This project is licensed under the MIT License. See [LICENSE](LICENSE) for detai
 
 ## Acknowledgments
 This package was created with [Cookiecutter](https://github.com/audreyr/cookiecutter) and the [audreyr/cookiecutter-pypackage](https://github.com/audreyr/cookiecutter-pypackage) project template.
+
