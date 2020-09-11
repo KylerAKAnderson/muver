@@ -1,15 +1,15 @@
-# muver
-muver is an analytical framework developed to improve sensitivity and increase accuracy in mutation identification from high-throughput sequencing data. muver provides significantly increased accuracy in challenging genomic contexts, including low complexity repetitive sequences. The muver framework has been applied to data from mutation accumulation experiments in yeast.
+# MuVer
+MuVer is an analytical framework developed to improve sensitivity and increase accuracy in mutation identification from high-throughput sequencing data. MuVer provides significantly increased accuracy in challenging genomic contexts, including low complexity repetitive sequences. The MuVer framework has been applied to data from mutation accumulation experiments in yeast.
 
 ## Requirements
-muver was developed using Python 3.7.6. In addition to requirements specified in setup.py, muver requires installation of the following tools:
+MuVer was developed using Python 2.7.18, and is maintained on Python 3.7.6. In addition to requirements specified in setup.py, MuVer requires installation of the following tools:
 * [Bowtie2](http://bowtie-bio.sourceforge.net/bowtie2/index.shtml)
 * [GATK, version 3.7-0](https://software.broadinstitute.org/gatk/download/)
 * [picard](https://broadinstitute.github.io/picard/)
 * [samtools](http://www.htslib.org/download/)
 
 ## Installation
-After download, nagivate to the muver directory. Proper function of muver requires the paths to depencies to be set.  To do this, manually set the paths in `paths.cfg` using a text editor.
+After download, nagivate to the muver directory. Proper function of MuVer requires the paths to depencies to be set.  To do this, manually set the paths in `paths.cfg` using a text editor.
 
 After the correct paths have been set, install muver with the following command:
 
@@ -18,7 +18,7 @@ python setup.py install
 ```
 
 ## Functions
-All of muvers functions may be accessed using its command line interface. General usage is as follows:
+All of MuVers functions may be accessed using its command line interface. General usage is as follows:
 
 ```
 muver COMMAND [OPTIONS] [ARGS]...
@@ -42,13 +42,13 @@ Available commands:
 muver run_pipeline [OPTIONS] REFERENCE_ASSEMBLY FASTQ_LIST CONTROL_SAMPLE_NAME EXPERIMENT_DIRECTORY
 ```
 
-Runs the full muver pipeline, from FASTQs to called genotypes and mutations. For details about the mutation calling methodology, see the companion manuscript.
+Runs the full MuVer pipeline, from FASTQs to called genotypes and mutations. For details about the mutation calling methodology, see the companion manuscript.
 
 Input samples and parameters are specified in the `FASTQ_LIST` file. In this file, each row corresponds to an individual sample. The row contents in turn are specified by header fields in the first row. For a complete example, see example_fastq_list.txt.
 
-The default depth correction is not a general solution; it was produced for specific patterns observed in yeast data from the lab developing this software. It assumes the presence of a short mitochondrial chromosome and contains accommodations for an rDNA locus. *To turn off this depth correction completely, run the pipeline with the option --dcmodule=''.* For depth profiles that are already sufficiently flat (not including potential CNVs) the depth correction will have minimal effect, but may cause artifacts under certain conditions.
+The default depth correction is intended for use by the lab developing MuVer. *To turn off depth correction, add the option --dcmodule=''.* For depth profiles that are already sufficiently flat (ignoring potential CNVs) the depth correction will have minimal effect, but may cause artifacts.
 
-The depth submodule refers to an optional config for tweaking parameters of its procedures. Of particular interest is the accommodation of an rDNA locus. If the options 'rDNAxrm' and 'rDNAreg' are activated, the depth correction process will attempt to address a spike in the depth profile caused by the piling of rDNA reads at this locus. 
+The depth submodule refers to an options.cfg file *in the working directory* for tweaking parameters of its procedures. *If the default depth correction is used, this file is* ***NOT*** *optional.* This is because the default depth correction assumes a yeast genome and requires information about chromosome number in order to operate. More information is provided in options.cfg.
 
 Prior to running, the reference assembly must be indexed and repeats called. To do this, run the muver functions [index_reference](#index_reference) and [create_repeat_file](#create_repeat_file).
 
@@ -85,19 +85,19 @@ The sample_info.txt file contains parameters and paths to output files associate
 
   Contains bedGraph files describing read depths in processed BAM after passing the depths through a correction process for the sake of improving CNV calls. If --dcmodule='' is specified when using [run_pipeline](#run_pipeline), this directory will not be populated.
 
-  *Please note that [correct_depths](#correct_depths) still uses v0.1.0 depth correction and does not ouput to this directory.*
+  *Please note that [correct_depths](#correct_depths) still uses v0.1.0 depth correction and does not ouput to this directory. This behavior will be addressed in v0.2.1.*
 
 * depth_distributions/
 
   Contains depth and strand bias distributions. In addition, contains bedGraph files describing read depths in processed BAM files. Depth and strand bias distributions are generated using [calculate_depth_distribution](#calculate_depth_distribution) and [calculate_bias_distribution](#calculate_bias_distribution), respectively. Read depths are calculated using [calculate_read_depths](#calculate_read_depths).
 
-  *Please note that [calculate_depth_distribtion](#calculate_depth_distribution) still produces the parameters from v0.1.0 depth distributions.*
+  *Please note that [calculate_depth_distribtion](#calculate_depth_distribution) still produces the parameters from v0.1.0 depth distributions. This inconsistency will be addressed by v0.2.1.*
 
 * filtered_sites/
 
   Contains regions filtered on the basis of abnormal read depth. 
 
-  *Please note that [calculate_depth_distribution](#calculate_depth_distribution) still uses v0.1.0 filtering techniques relying on v0.1.0 depth distribution parameters as produced by [calculate_depth_distribtion](#calculate_depth_distribution).
+  *Please note that [calculate_depth_distribution](#calculate_depth_distribution) still uses v0.1.0 filtering techniques relying on v0.1.0 depth distribution parameters as produced by [calculate_depth_distribtion](#calculate_depth_distribution). This inconsistency will be addressed by v0.2.1
 
 * fits/
 
@@ -133,7 +133,7 @@ The sample_info.txt file contains parameters and paths to output files associate
 
   Whether to clear temporary files and serialize the sample information after running the pipe_line. Valid options include 'Yes' (or 'Y'), 'On_Success' (or 'S', this is the Default), and 'No' (or 'N'). '(Y)es' will delete any temporary files even if the run ends in an error whereas 'On_(S)uccess' only deletes them if the run ends successfully. '(N)o' will always leave behind all temporary files.
 
-This behavior is to be used in conjunction with the `--stage` option to resume the pipeline from intermediate stages for manual interventions or interrupted runs.
+  This behavior is to be used in conjunction with the `--stage` option to resume the pipeline from intermediate stages for manual interventions or interrupted runs.
 
 * `--old_filter`
 
@@ -147,7 +147,7 @@ This behavior is to be used in conjunction with the `--stage` option to resume t
 
 * `--stage`
 
-  Allows the pipeline to begin at intermediate steps. Run a set of samples without this option before attempting to use it. Temporary files and sample information may be serialized (see the `--clear_tmps` option) for a given run. Providing a non-zero value for the stage instructs MuVer to load the serialized information and use the previous temporary files. Follow the integer codes next to the names of stages in the ouput to indicate the desired entry point. Starting later than the last successful stage produces behavior that is left undefined and unsupported.
+  Allows the pipeline to begin at intermediate steps. Run a set of samples without this option before attempting to use it. Temporary files and sample information may be serialized (see the `--clear_tmps` option) for a given run. Providing a non-zero value for the stage instructs MuVer to load the serialized information and use the previous temporary files. Follow the integer codes next to the names of stages in the ouput to indicate the desired entry point. Starting later than the last successful stage produces behavior that is left undefined and is therefore unsupported.
 
 #### Arguments
 * `REFERENCE_ASSEMBLY`
