@@ -4,7 +4,7 @@ import numpy as np
 import pandas as pd
 import scipy.signal as sgnl
 
-import util, stats, curves
+from . import util, stats, curves
 
 '''
 Created Feb 2020

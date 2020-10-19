@@ -5,20 +5,20 @@
 import click
 import os
 
-from allelic_fraction import get_allelic_fractions
-from bias_distribution import calculate_bias_distribution_bam
-from call_mutations import call_mutations as _call_mutations
-from depth_correction import write_corrected_bedgraph
-from depth_distribution import (calculate_depth_distribution_bedgraph,
+from .allelic_fraction import get_allelic_fractions
+from .bias_distribution import calculate_bias_distribution_bam
+from .call_mutations import call_mutations as _call_mutations
+from .depth_correction import write_corrected_bedgraph
+from .depth_distribution import (calculate_depth_distribution_bedgraph,
                                 filter_regions_by_depth_bedgraph)
-from depth_ratios import calculate_depth_ratios as _calculate_depth_ratios
-from pipeline import run_pipeline as _run_pipeline
-from reference import create_reference_indices, read_chrom_sizes
-from repeat_indels import fit_repeat_indel_rates as _fit_repeat_indel_rates
-from repeats import create_repeat_file as _create_repeat_file
-from repeats import extract_repeat_file_sample as _extract_repeat_file_sample
-from utils import read_repeats
-from wrappers.samtools import get_mpileup_depths
+from .depth_ratios import calculate_depth_ratios as _calculate_depth_ratios
+from .pipeline import run_pipeline as _run_pipeline
+from .reference import create_reference_indices, read_chrom_sizes
+from .repeat_indels import fit_repeat_indel_rates as _fit_repeat_indel_rates
+from .repeats import create_repeat_file as _create_repeat_file
+from .repeats import extract_repeat_file_sample as _extract_repeat_file_sample
+from .utils import read_repeats
+from .wrappers.samtools import get_mpileup_depths
 
 
 @click.group()
@@ -42,7 +42,7 @@ def main(args=None):
               Valid options are (Y)es, On_(S)uccess (Default), and (N)o.')
 @click.option('--old_filter', default=False, type=bool,
               help='Whether to use the old depth filtering method.')
-@click.option('--dcmodule', default='depth', type=str,
+@click.option('--dcmodule', default=None, type=str,
               help='Name of an alternative depth correction module. \
               A path to the module may be supplied if the module will not \
               be found anywhere on PATH. An empty string will turn off depth correction.')
@@ -240,8 +240,8 @@ def correct_depths(y_int, scalar, mean_log, sd_log, slope, reference_assembly,
     )
 
 @main.command()
-@click.argument('bam_file', type=click.Path(exists=True))
-@click.argument('reference_assembly', type=click.Path(exists=True))
+@click.argument('bam_file', type=str)#click.Path(exists=True))
+@click.argument('reference_assembly', type=str)#click.Path(exists=True))
 @click.argument('output_bedgraph', type=str)
 def calculate_read_depths(bam_file, reference_assembly, output_bedgraph):
     '''

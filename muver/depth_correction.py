@@ -1,6 +1,6 @@
 import math
 
-from reference import read_chrom_sizes
+from .reference import read_chrom_sizes
 
 
 def write_corrected_bedgraph(input_bedgraph, chrom_sizes, output_bedgraph,

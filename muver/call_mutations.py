@@ -1,9 +1,9 @@
 import os
 import sys
 
-import reference
-import sample
-import variant_list
+from . import reference
+from . import sample
+from . import variant_list
 
 
 def call_mutations(reference_assembly, control_sample, sample_list, input_vcf,

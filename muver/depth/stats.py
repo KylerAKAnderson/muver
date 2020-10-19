@@ -2,7 +2,7 @@ import pandas as pd
 import numpy as np
 import scipy.stats as sps
 
-import curves, util
+from . import curves, util
 
 '''
 Created Jan 2020

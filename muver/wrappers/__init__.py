@@ -10,6 +10,7 @@ config.read(os.path.join(
 for key, value in config.items('paths'):
     PATHS[key] = value
 
+experiment_directory = None
 
 def quiet_call(call_list, stdout='muver_externals_output.txt', stderr='muver_externals_error.txt'):
     '''
@@ -18,6 +19,10 @@ def quiet_call(call_list, stdout='muver_externals_output.txt', stderr='muver_ext
     stdout_file -- captures stdout (default os.devnull)
     '''
     
+    if experiment_directory:
+        stdout = os.path.join(experiment_directory, stdout)
+        stderr = os.path.join(experiment_directory, stderr)
+
     with open(stdout, 'a+') as OUT,\
          open(stderr, 'a+') as ERR:
         OUT.seek(0, os.SEEK_END)

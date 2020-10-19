@@ -1,6 +1,6 @@
 import os
 
-from __init__ import PATHS, quiet_call
+from .__init__ import PATHS, quiet_call
 
 
 def align(fastq_1, ref_fn, output_fn, fastq_2=None, p=1):
