@@ -5,8 +5,8 @@ import re
 from scipy.stats import norm
 from scipy.optimize import curve_fit
 
-from fitting import gaussian
-from wrappers import samtools
+from .fitting import gaussian
+from .wrappers import samtools
 
 
 def calculate_bias_distribution(_iter, output): # removed unused ref_fn argument

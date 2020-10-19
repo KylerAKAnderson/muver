@@ -5,8 +5,8 @@ import shutil
 import time
 from tempfile import NamedTemporaryFile, mkdtemp
 
-from repeat_indels import read_fits
-from utils import read_config
+from .repeat_indels import read_fits
+from .utils import read_config
 
 
 class Sample(object):
@@ -198,7 +198,8 @@ class Sample(object):
                     tempfile_names.append(value)
 
         for name in tempfile_names:
-            os.remove(name)
+            if os.path.exists(name):
+                os.remove(name)
 
     def clear_temp_file_indices(self):
         '''
@@ -224,7 +225,7 @@ class Sample(object):
                     glob.glob('{}*{}'.format(os.path.splitext(name)[0], ext)))
 
                 for fn in set(to_remove):
-                    if fn != name:
+                    if fn != name and os.path.exists(fn):
                         os.remove(fn)
 
         for name in self.tmp_dirs:

@@ -4,8 +4,8 @@ import numpy
 import os
 from collections import defaultdict
 
-from depth_distribution import calculate_depth_distribution_bedgraph
-from reference import read_chrom_sizes
+from .depth_distribution import calculate_depth_distribution_bedgraph
+from .reference import read_chrom_sizes
 
 
 def calculate_depth_ratios(input_bedgraph, reference_assembly, output_file,

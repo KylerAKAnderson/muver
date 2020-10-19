@@ -5,11 +5,12 @@ import numpy.ma as npma
 import pandas as pd
 import scipy.stats as sps
 
-import correction as crct
-import blocking as blkg
-import curves
-from stats import globalSummary
-from shoulder import identifyShoulderedRegions
+from . import (
+    correction as crct,
+    blocking as blkg,
+    curves)
+from .stats import globalSummary
+from .shoulder import identifyShoulderedRegions
 
 """Top-level package for Smile and Bulge Depth Correction Extension to Muver."""
 
@@ -82,11 +83,11 @@ def correct_depths(depthsByName, sample_name, ploidy,
         float(options.get('resT', 0.5))/ploidy)
     
     if rDNAxrm:
-        depths[rDNAxrm], rDNArepeats \
-            = rDNAFix(rDNAxrmO, rDNAxrmS.data, lengths,
+        depths[rDNAxrm], rDNArepeats = \
+            rDNAFix(rDNAxrmO, rDNAxrmS.data, lengths,
                    Zs, int(options.get('n', 5)), rDNAi, rDNAf)
         if output_folder:
-            with open(pth.join(output_folder, 'rDNA_fix_info.txt'), 'w') as OUT:
+            with open(pth.join(output_folder, 'rDNA_fix_info.txt'), 'w') as OUT:
                 OUT.write('Estimated rDNA repeats on {}: {}'.format(rDNAxrm, rDNArepeats))
     
     # Reversion

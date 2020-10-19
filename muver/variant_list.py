@@ -1,8 +1,8 @@
 import math
 import numpy
 
-from variant import Variant
-from utils import read_excluded_regions, read_repeats_var, read_filtered_sites
+from .variant import Variant
+from .utils import read_excluded_regions, read_repeats_var, read_filtered_sites
 
 
 def get_allele_values(alleles, in_dict):
