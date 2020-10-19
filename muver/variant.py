@@ -5,7 +5,7 @@ import re
 from scipy.stats import binom, chi2
 import sys
 
-from fitting import logistic
+from .fitting import logistic
 
 
 def get_repeat_adjustment_value(unit_length, repeat_sequence_length,

@@ -1,7 +1,7 @@
 import os
 
-from __init__ import PATHS, quiet_call
-from samtools import index_bam
+from .__init__ import PATHS, quiet_call
+from .samtools import index_bam
 
 
 def add_read_groups(in_sam, out_bam, sample_header, tmp_dir, max_records):

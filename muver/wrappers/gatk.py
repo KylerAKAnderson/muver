@@ -1,4 +1,4 @@
-from __init__ import PATHS, quiet_call
+from .__init__ import PATHS, quiet_call
 
 
 def run_base_recalibrator(bam, known_sites, ref_fn, recal_table, log_file):

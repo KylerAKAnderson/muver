@@ -8,9 +8,9 @@ import numpy as np
 import numpy.ma as npma
 from scipy.optimize import curve_fit
 
-from util import quietly
-from stats import rmsd
-from curves import BiHypa
+from .util import quietly
+from .stats import rmsd
+from .curves import BiHypa
 
 '''
 Created Oct 2019

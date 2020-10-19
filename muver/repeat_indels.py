@@ -7,8 +7,8 @@ import math
 import re
 from scipy.optimize import curve_fit
 
-from fitting import logistic
-from wrappers.samtools import view_bam
+from .fitting import logistic
+from .wrappers.samtools import view_bam
 
 
 def calculate_repeat_occurrences(repeats):

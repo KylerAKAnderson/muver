@@ -6,19 +6,21 @@ import os
 import sys
 import time
 import pickle
+import re
 
-import bias_distribution as bias_dist
-import depth_distribution as depth_dist
-import read_processing
-import reference
-from repeat_indels import fit_repeat_indel_rates, read_fits
-from repeats import create_repeat_file
-from sample import (Sample, read_samples_from_text,
+from . import bias_distribution as bias_dist
+from . import depth_distribution as depth_dist
+from . import read_processing as read_processing
+from . import reference as reference
+from .repeat_indels import fit_repeat_indel_rates, read_fits
+from .repeats import create_repeat_file
+from .sample import (Sample, read_samples_from_text,
                     generate_experiment_directory, write_sample_info_file)
-from utils import read_repeats, read_config
-from variant_list import VariantList
-from wrappers import bowtie2, gatk, picard, samtools
-from depth import describe_regions, correct_depths
+from .utils import read_repeats, read_config
+from .variant_list import VariantList
+from . import wrappers
+from .wrappers import bowtie2, gatk, picard, samtools
+from .depth import describe_regions, correct_depths
 
 def process_sams(args):
     '''
@@ -354,11 +356,18 @@ def _run_pipeline(reference_assembly, samples, control_sample,
     # Preamble for logging and state
     t = time.strftime('%c')
     stamp = "\n{0}\n== On {1} ==\n{0}\n".format("="*(9+len(t)), t)
-    log = SimpleLogger()
+    
+    logname = 'muver_p0-{}_{}.txt'.format(
+        control_sample.sample_name,
+        re.sub('[ |:]','',t)
+    )
+    logfile = open(os.path.join(experiment_directory, logname), 'a+')
+    log = SimpleLogger(logfile)
     log.raw(stamp)
     
-    with open('muver_externals_error.txt', 'w') as err,\
-         open('muver_externals_output.txt', 'w') as output:
+    wrappers.experiment_directory = experiment_directory
+    with open(os.path.join(experiment_directory, 'muver_externals_error.txt'), 'w') as err,\
+         open(os.path.join(experiment_directory, 'muver_externals_output.txt'), 'w') as output:
         err.write(stamp)
         output.write(stamp)
     
@@ -483,6 +492,7 @@ def _run_pipeline(reference_assembly, samples, control_sample,
         write_sample_info_file(samples, sample_info_file)
     
     log('Done :)')
+    logfile.close()
 
 class SimpleLogger():
     
@@ -504,20 +514,20 @@ class SimpleLogger():
 class Timer():
     
     def __init__(self):
-        time.clock()
-        self.t0 = time.clock()
+        time.perf_counter()
+        self.t0 = time.perf_counter()
         self.ti = self.t0
     
     ''' returns total time elapsed'''
     def total(self):
-        return time.clock() - self.t0
+        return time.perf_counter() - self.t0
     
     def Total(self):
         return form(self.total())
     
     ''' returns time since last lap'''
     def lap(self):
-        tf = time.clock()
+        tf = time.perf_counter()
         dt = tf - self.ti
         self.ti = tf
         return dt

@@ -1,6 +1,6 @@
 import os
 
-from wrappers import bowtie2, picard, samtools
+from .wrappers import bowtie2, picard, samtools
 
 
 def create_reference_indices(ref_fn):

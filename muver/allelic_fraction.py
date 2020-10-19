@@ -3,7 +3,7 @@ import re
 import numpy
 import csv
 
-from wrappers.samtools import mpileup_iter
+from .wrappers.samtools import mpileup_iter
 
 
 def get_allelic_fractions(bam_file, ref_fn, output_file):

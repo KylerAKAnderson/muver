@@ -1,9 +1,9 @@
 import numpy
 from scipy.stats import norm
 from scipy.optimize import curve_fit
-from utils import read_cnv_bedgraph
 
-from fitting import gaussian
+from .utils import read_cnv_bedgraph
+from .fitting import gaussian
 
 
 def read_raw_depths_mpileup(mpileup_file, chrom_sizes):
